@@ -1,0 +1,418 @@
+<!doctype html><meta charset=utf-8><title>Watch3 on non-Samsung Android + Verizon eSIM</title>
+<style>
+body{max-width:900px;margin:40px auto;padding:0 20px;font:16px/1.6 -apple-system,Segoe UI,Helvetica,Arial;color:#1a1a1a}
+h1{font-size:2em;border-bottom:2px solid #eee;padding-bottom:.3em;margin-top:2em}
+h1:first-child{margin-top:0}
+h2{margin-top:1.8em;border-bottom:1px solid #eee;padding-bottom:.2em}
+h3{margin-top:1.4em}
+code{background:#f5f5f5;padding:2px 5px;border-radius:4px;font-size:.9em}
+pre{background:#f6f8fa;padding:14px;overflow:auto;border-radius:6px}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+th{background:#f5f5f5}
+blockquote{border-left:4px solid #ddd;margin:1em 0;padding:.2em 1em;color:#555;background:#fafafa}
+a{color:#0969da}
+hr{border:none;border-top:1px solid #eee;margin:2.5em 0}
+</style>
+<h1>Galaxy Watch3 (SM-R845U) on a non-Samsung Android phone — pairing + standalone Verizon eSIM</h1>
+<p><strong>Status: SOLVED and verified</strong> on a US-unlocked Galaxy Watch3 (SM-R845U, CSC <code>XAR</code>,
+build <code>R845USQU1DWK2</code>, Tizen 5.5.0.2) paired to a <strong>Motorola</strong> phone, with a working
+<strong>standalone Verizon LTE eSIM and its own phone number</strong>.</p>
+<p>This guide has two parts:</p>
+<ol>
+<li><strong>Pairing</strong> a Samsung Tizen watch to a non-Samsung Android phone, including the
+   "Finishing up…" setup deadlock that stops most people.</li>
+<li><strong>Activating a standalone Verizon eSIM</strong>, including why Galaxy Wearable says
+   <em>"There aren't any mobile plans available for your watch in your country"</em> and how to
+   get past it.</li>
+</ol>
+<p>No root, no firmware flashing, no paid tools.</p>
+<hr />
+<h1>Part 1 — Pairing the watch to a non-Samsung phone</h1>
+<p>A Galaxy Watch3 pairs to any modern Android phone through <strong>Galaxy Wearable</strong>, but on a
+non-Samsung phone it needs three APKs, not one, and the setup wizard has a known deadlock.</p>
+<h2>1.1 What you need</h2>
+<table>
+<thead>
+<tr>
+<th>APK</th>
+<th>Package</th>
+<th>Version used here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Galaxy Wearable</td>
+<td><code>com.samsung.android.app.watchmanager</code></td>
+<td>2.2.72.26092361</td>
+</tr>
+<tr>
+<td>Watch3 plugin</td>
+<td><code>com.samsung.android.gearnplugin</code></td>
+<td>2.2.09.24012551</td>
+</tr>
+<tr>
+<td>Accessory Service</td>
+<td><code>com.samsung.accessory</code></td>
+<td>3.1.96.61123</td>
+</tr>
+</tbody>
+</table>
+<p>You do <strong>not</strong> need a Samsung account to pair. You only need one for Galaxy Store
+content. The Play Store sometimes refuses to offer Galaxy Wearable on non-Samsung phones
+in some regions — sideload the APKs instead (<code>adb install -r &lt;apk&gt;</code> or tap them on the
+phone with "install unknown apps" allowed).</p>
+<p><strong>Install order matters:</strong> Accessory Service → Galaxy Wearable → Watch3 plugin.</p>
+<pre><code class="language-bash">adb install -r accessory-service.apk
+adb install -r galaxy-wearable.apk
+adb install -r watch3-plugin.apk
+</code></pre>
+<h2>1.2 Prepare the watch</h2>
+<ul>
+<li>Charge it above ~30%. Setup refuses to finish on very low battery.</li>
+<li>If it was paired to another phone before, <strong>reset it first</strong>:
+  <em>Settings → General → Reset → Reset</em>. (Or unpair it from the old phone's Galaxy
+  Wearable, which resets it.)</li>
+<li>If the watch shows a <strong>Reactivation Lock</strong> / previous owner's Samsung account, stop:
+  only the previous owner can remove it (they must sign in and remove the device, or
+  reset it from their Samsung account).</li>
+<li>Turn the watch on and leave it on the "Welcome / language" screen.</li>
+</ul>
+<h2>1.3 Pair</h2>
+<ol>
+<li>On the phone, open <strong>Galaxy Wearable → Add device / Scan</strong>.</li>
+<li>Choose the watch from the list (keep it close, Bluetooth on).</li>
+<li>Both devices show a <strong>pairing code</strong> — confirm on the watch and the phone.</li>
+<li>The watch begins "Copying your apps" / setup.</li>
+</ol>
+<p>Grant whatever the phone asks for: <strong>Nearby devices</strong>, <strong>Location</strong>, and — important for
+later — <strong>Notification access</strong> for the watch plugin (<code>com.samsung.android.gearnplugin</code>'s
+<code>NotificationListener</code>). Without it, phone notifications never reach the watch.</p>
+<h2>1.4 The "Finishing up…" deadlock (the big one)</h2>
+<p>On non-Samsung phones the OOBE commonly freezes here:</p>
+<pre><code>Finishing up…
+This might take a few minutes.
+While you're waiting, take a moment to get familiar with your watch.
+</code></pre>
+<p>It never finishes. This is not a pairing failure — the Samsung OOBE broadcast it waits for
+is never sent. Fix it with adb while the phone is connected over USB with <strong>USB debugging</strong>
+enabled (Developer options → USB debugging):</p>
+<pre><code class="language-bash">adb shell am broadcast -a OOBE_FLOW_CONTINUE_REQUEST
+</code></pre>
+<p>Within a few seconds the phone continues to the <strong>Samsung Terms</strong> screen:</p>
+<ul>
+<li><strong>For your review</strong> — tap <strong>Continue</strong></li>
+<li><strong>Terms / diagnostics</strong> — the optional toggles can stay off</li>
+</ul>
+<p>Then the wizard moves on to the mobile-plan step (see Part 2) and finally the watch
+dashboard.</p>
+<blockquote>
+<p>If you don't have adb, you can also force it by restarting Galaxy Wearable, but the
+broadcast is instant and reliable.</p>
+</blockquote>
+<h2>1.5 Finish setup</h2>
+<ul>
+<li>If it asks to <strong>install Samsung Health</strong>, tap <strong>Not now</strong> — it isn't needed and doesn't
+  work properly on non-Samsung phones.</li>
+<li>Wait for the <strong>Galaxy Watch3</strong> dashboard with battery %, Watch faces, Apps, Widgets,
+  Quick panel, Watch settings.</li>
+<li>Pairing is complete.</li>
+</ul>
+<h2>1.6 Verify the pairing is healthy</h2>
+<p>On the phone:</p>
+<pre><code class="language-bash">adb shell dumpsys activity activities | grep -m1 topResumedActivity
+# com.samsung.android.gearnplugin/com.samsung.android.gearoplugin.maininfo.MainInfoActivity
+</code></pre>
+<p>On the watch: swipe down for the Quick panel; the Bluetooth icon should be solid, and
+Galaxy Wearable should show a battery percentage and "Connected".</p>
+<h2>1.7 Optional: developer access on the watch (for logs / sdb)</h2>
+<ul>
+<li>Watch: <em>Settings → About watch → Software → tap "Software version" 5×</em></li>
+<li>Then <em>Settings → Developer options → Debugging = ON</em></li>
+<li>Connect the watch to the same Wi-Fi as your computer to use <code>sdb connect &lt;ip&gt;:26101</code></li>
+</ul>
+<hr />
+<h1>Part 2 — Standalone Verizon eSIM</h1>
+<h2>TL;DR</h2>
+<ol>
+<li>The blocker is <strong>not</strong> Verizon, the EID/IMEI, or the phone. It is Samsung's
+   per-operator carrier config, which only lists <code>SM-R845U</code> for <em>some</em> operators.</li>
+<li><strong>Visible / Visible eSIM does not work</strong> — its MVNO entry omits the Watch3.</li>
+<li><strong>T-Mobile works for the gate but has no QR support</strong>, and the watch isn't registered.</li>
+<li><strong>A real Verizon eSIM (a free trial eSIM is enough) is the key.</strong> Verizon's entry
+   <em>does</em> list <code>SM-R845U</code> <strong>and</strong> has <code>QrSupport = true</code>, which makes Galaxy Wearable show
+   <strong>"Use code"</strong>.</li>
+<li>Enter the watch line's activation code:
+   <code>LPA:1$2.vzw.otgeuicc.com$&lt;matching-id&gt;</code>.</li>
+</ol>
+<h2>2.1 The error everyone hits</h2>
+<p>Galaxy Wearable → Watch settings → Mobile plans:</p>
+<blockquote>
+<p><strong>"There aren't any mobile plans available for your watch in your country."</strong>
+<em>Contact Samsung Customer Service for more information.</em></p>
+</blockquote>
+<p>Only a <strong>Skip</strong> button. The plugin log says:</p>
+<pre><code>[ESIM]_ : MobileNetworksInfo.setMobileNetworksInfo() - mESSupport : true, onlineSupport : true,
+          mQRSupport : true, mOfflineSupport : false, mExtendedAuthSupport : true,
+          mCallForkingStatusFromSGC : false, mSupportedGear : -5
+[ESIM]_ : SetupWizardMobileNetworkSetupActivity.getSupportedGear() - -5
+[ESIM]_ : showMobileNetworkError() &gt; exceptionCode : WATCH_NOT_SUPPORTED_IN_THE_REGION
+</code></pre>
+<p><code>-5</code> → <code>WATCH_NOT_SUPPORTED_IN_THE_REGION</code>. The message is misleading: it is not about the
+country, it is about the <strong>operator entry</strong> Samsung returned for your phone's SIM.</p>
+<h2>2.2 Root cause</h2>
+<p>The plugin has the watch fetch Samsung's SGC operator list:</p>
+<pre><code>https://lookup.esimsamsung.com/v1/operators/subscriptionInfo?mcc=&lt;MCC&gt;&amp;mnc=&lt;MNC&gt;
+</code></pre>
+<p>The phone matches one entry using the <strong>phone SIM's GID1/IMSI</strong>, then validates the watch
+model against that entry's <code>approved_versions</code>:</p>
+<pre><code>JSONObject approved = gmFeature.getJSONObject(&quot;approved_versions&quot;);
+JSONObject versions = approved.getJSONObject(&quot;SM-R845U&quot;);   // throws if absent
+</code></pre>
+<p>If <code>SM-R845U</code> is not a key → <code>supportedGear = -5</code> → the app refuses.</p>
+<p>Captured from a real Watch3:</p>
+<table>
+<thead>
+<tr>
+<th>Phone SIM</th>
+<th>Matched entry</th>
+<th><code>SM-R845U</code> in entry?</th>
+<th>QR support</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Visible (311/480, GID1 <code>BAE1000000000000</code>)</td>
+<td><code>Visible</code></td>
+<td><strong>no</strong> → <code>-5</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>TruConnect / T-Mobile family (310/240)</td>
+<td><code>TMobile</code></td>
+<td>yes → <code>0</code></td>
+<td><strong>false</strong></td>
+</tr>
+<tr>
+<td><strong>Verizon (311/480)</strong></td>
+<td><code>Verizon</code></td>
+<td>yes → <code>0</code></td>
+<td><strong>true</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Verizon's entry returned:</p>
+<pre><code>Result : SUCCESS, ResultCode : 1000
+EsSupport : true, OnlineSupport : true, QrSupport : true
+SmdpAddress : [https://www.verizon.com]
+OperatorName : Verizon
+approvedVersionObject :
+  {&quot;TMB&quot;:&quot;R845USQU0ATD8&quot;,&quot;XAR&quot;:&quot;R845USQU0ATD8&quot;,&quot;ATT&quot;:&quot;R845USQU0ATD8&quot;,
+   &quot;VZW&quot;:&quot;R845USQU0ATD8&quot;,&quot;SPR&quot;:&quot;R845USQU0ATD8&quot;,&quot;USC&quot;:&quot;R845USQU0ATD8&quot;}
+supportedGear : 0
+</code></pre>
+<p>Because <code>QrSupport = true</code>, the app stops saying "no plans" and shows:</p>
+<blockquote>
+<p><strong>"Mobile service for your watch"</strong>
+<em>If you have a QR code or activation code, tap </em><em>Use code</em><em>.</em></p>
+</blockquote>
+<p>That is the entire secret.</p>
+<h2>2.3 Prerequisites</h2>
+<ul>
+<li>Galaxy Watch3 LTE <strong>SM-R845U</strong> (model-specific)</li>
+<li>The watch already paired (Part 1)</li>
+<li><strong>A Verizon eSIM in that phone</strong> — the free Verizon trial eSIM is sufficient. It does
+  not need to be the watch's plan; it only supplies the operator identity.</li>
+<li>The watch line's <strong>activation code</strong>: <code>LPA:1$2.vzw.otgeuicc.com$&lt;matching-id&gt;</code>
+  (or the QR image)</li>
+</ul>
+<h2>2.4 Procedure</h2>
+<h3>Step 1 — Put a Verizon eSIM in the phone</h3>
+<p>Confirm the phone reports it:</p>
+<pre><code class="language-bash">adb shell getprop gsm.sim.operator.alpha     # -&gt; Verizon
+adb shell getprop gsm.sim.operator.numeric   # -&gt; 311480
+</code></pre>
+<p>If there is a second SIM (physical or eSIM), make sure the <strong>Verizon one is selected</strong>
+when the plugin asks which SIM to use.</p>
+<h3>Step 2 — Open the mobile-plan step</h3>
+<p>Galaxy Wearable → <strong>Watch settings → Mobile plans</strong> (or continue the setup wizard).</p>
+<p>With the Verizon eSIM you should see the data-consent screen and then:</p>
+<pre><code>Mobile service for your watch
+If you have a QR code or activation code, tap Use code.
+[ Use code ]   Don't have a plan? Sign up for one now   Skip | Next
+</code></pre>
+<p>Still seeing <em>"There aren't any mobile plans available…"</em>? The phone didn't match
+Verizon's entry — re-check the active SIM.</p>
+<h3>Step 3 — Get the activation code from Verizon</h3>
+<ul>
+<li><strong>My Verizon</strong> → the watch line → <em>Activate / Switch device</em> → <strong>eSIM activation</strong>
+  (shows a QR and an <code>LPA:</code> code)</li>
+<li>or call <strong>611</strong> and ask for the <em>eSIM activation code / QR for the Galaxy Watch3 line</em></li>
+</ul>
+<p>Format:</p>
+<pre><code>LPA:1$2.vzw.otgeuicc.com$ABC123DEF456
+</code></pre>
+<blockquote>
+<p>Entering only <code>https://2.vzw.otgeuicc.com</code> gives <strong>"QR code not valid"</strong> — the matching
+ID is required.</p>
+</blockquote>
+<h3>Step 4 — Enter it</h3>
+<p>Tap <strong>Use code</strong> → the QR scanner opens.</p>
+<p>Scan the QR, or tap <strong>"Enter an activation code instead"</strong> and paste the <code>LPA:1$…$…</code>
+string.</p>
+<p>The watch downloads and enables the profile. The phone log shows:</p>
+<pre><code>[ESIM]_ : HMeSIMManager.handleProfileInstallProgressRNoti() - progress : 99
+[ESIM]_ : ESimJSONReceiver.handleProfileDownloadRes() - result : success, reason : 0,
+          profileId : ****************
+[ESIM]_ : SetupWizardMobileNetworkHandler.handleProfileDownloadedResponse() - result : success
+[ESIM]_ : eSIMUtil.sendModifyProfileRequest() - modifyType : enable
+[ESIM]_ : HMeSIMManagerInternal.handleModifyProfile() - type : enable / success : true
+[ESIM]_ : ProfileManager.getList() - profileList :
+          [{ ProfileId : ****************, ProfileName : Verizon, CarrierName : Verizon,
+             DisplayName : Verizon-XXXX, Mcc : 311, Mnc : 480, Enabled : true }]
+[ESIM]_ : eSIMUtil.getESIMProfileCount() - profileCount : 1
+</code></pre>
+<p>Tap <strong>Done</strong>. The dashboard shows <strong>"Mobile data, Verizon"</strong>.</p>
+<h2>2.5 Verification</h2>
+<ol>
+<li>Turn <strong>Wi-Fi off</strong> and <strong>Bluetooth off</strong> on the watch.</li>
+<li>It registers on LTE (<code>/proc/net/dev</code> shows an <code>rmnet*</code> interface carrying data).</li>
+<li>Call the watch's own number — it rings on the watch.</li>
+<li>Texts and data work without the phone.</li>
+</ol>
+<h2>2.6 Bluetooth vs LTE — one or the other (by design)</h2>
+<p>Samsung's Tizen watches <strong>park the cellular radio while connected to the phone via
+Bluetooth or Wi-Fi remote connection</strong>, to save battery. Samsung's own team confirms:</p>
+<blockquote>
+<p><em>"Cellular is actually switched off when you are in Bluetooth range… It won't use your
+Cellular while within Bluetooth range — if it didn't your watch would run out of battery
+much quicker."</em></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What works</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bluetooth connected</td>
+<td>Notifications, calls via the <strong>phone's</strong> number. Calls to the watch's own number go to voicemail.</td>
+</tr>
+<tr>
+<td>Bluetooth off / out of range</td>
+<td>The watch's <strong>own</strong> number works on LTE (calls, texts, data).</td>
+</tr>
+</tbody>
+</table>
+<p>There is <strong>no Tizen 5.5 setting</strong> that keeps the watch's own line live for voice while
+Bluetooth is connected. "Mobile data → Always on" keeps data alive, not voice.</p>
+<p>For a single number that rings whether the watch is near the phone or not, use
+<strong>Verizon NumberShare</strong> (watch shares the phone's number) — it needs a Verizon postpaid
+phone line. A standalone watch line intentionally behaves as two separate states.</p>
+<h2>2.7 Troubleshooting</h2>
+<p><strong>"There aren't any mobile plans available for your watch in your country."</strong>
+Wrong operator entry for the phone SIM. Check:
+<code>adb shell getprop gsm.sim.operator.numeric</code>.
+Visible/MVNO → fails. T-Mobile family → gate opens, no QR. Verizon → works.</p>
+<p><strong>"QR code not valid"</strong>
+Only an SM-DP+ URL was entered. Use the full code with the matching ID.</p>
+<p><strong>"WATCH_NOT_SUPPORTED_IN_THE_REGION" / <code>supportedGear: -5</code></strong>
+Same as above.</p>
+<p><strong>"Sign up for one now" but no "Use code"</strong>
+That operator has <code>QrSupport = false</code>. Only Verizon (of those tested) exposes code entry
+for this watch.</p>
+<p><strong>Profile downloads but calls don't arrive with Bluetooth on</strong>
+Expected — see 2.6.</p>
+<p><strong>After a factory reset the eSIM is gone</strong>
+A reset can remove the profile. Avoid resetting once the eSIM is installed.</p>
+<h2>2.8 What does NOT work (tested)</h2>
+<ul>
+<li><strong>Sideloading an eSIM profile as a package.</strong> Profiles are issued by the carrier's
+  SM-DP+ for a specific EID; they are not <code>.wgt</code>/<code>.tpk</code> files.</li>
+<li><strong>Visible / Visible eSIM.</strong> Its Samsung operator entry only approves Watch4-era models.</li>
+<li><strong>T-Mobile / Metro.</strong> Gate opens (<code>supportedGear = 0</code>) but <code>QrSupport = false</code>, the
+  watch isn't registered, and entitlement returns no subscription URL.</li>
+<li><strong>The watch's standalone "country → provider" list.</strong> On this watch (XAR, Nov 2026) it
+  lists only T-Mobile and Metro for the USA. Verizon never appears there.</li>
+<li><strong><code>sdb root on</code>.</strong> Retail Tizen 5.5 returns <code>Permission denied</code>; no <code>rootsh</code>/<code>su</code>,
+  <code>sdbd</code> is not setuid. Root only exists under Samsung combination firmware.</li>
+<li><strong>Calling the eSIM D-Bus API directly.</strong> <code>/org/tizen/esim</code>,
+  <code>org.tizen.esim.Manager</code> (<code>DownloadProfile</code>, <code>EnableProfile</code>, <code>GetEid</code>, …) is protected
+  by <code>/etc/dbus-1/system.d/esim-server.conf</code>, which requires the privilege
+  <code>http://developer.samsung.com/tizen/privilege/esim</code>. Only Samsung apps hold it; the
+  shell user is explicitly denied and <code>security-manager-cmd</code> reports insufficient rights.</li>
+<li><strong>DNS spoofing the lookup.</strong> The SGC HTTPS call is made by the <strong>watch</strong>, not the phone,
+  and is mutually authenticated (the server requests a client certificate). Spoofing needs
+  a CA installed on the watch — i.e. root.</li>
+</ul>
+<hr />
+<h1>Appendix A — technical detail</h1>
+<h3>Operator matching (plugin)</h3>
+<pre><code>SgcManager.getMatchedOperator():
+  filter entries whose targetModels includes the watch model (SM-R845U)
+  match by SIM GID1 / IMSI subset
+  fallback: most frequent entry with empty gid1
+</code></pre>
+<h3>Model validation (plugin)</h3>
+<pre><code>HMeSIMManagerInternal.isSupportedGear():
+  if gmFeature is empty -&gt; 0
+  approved = gmFeature.approved_versions
+  versions = approved[MODEL]            // throws -&gt; -5
+  salesCode = BNR_DEVICEINFO/SALES_CODE // e.g. XAR
+  if versions has salesCode -&gt; compare last 4 chars of SOFTWARE_VERSION
+  else if &quot;ALL&quot; key -&gt; compare
+  else -&gt; -1
+</code></pre>
+<h3>Log filters</h3>
+<pre><code class="language-bash">adb logcat | grep -E &quot;\[ESIM\]&quot; | grep -iE \
+  &quot;matched operatorInfo|setMobileNetworksInfo|supportedGear|approvedVersion|exceptionCode|resultCode|ProfileDownload|profileList&quot;
+
+adb logcat | grep -E &quot;Finishing|OOBE|SetupWizardComplete&quot;
+</code></pre>
+<h3>Driving the UI from adb (optional)</h3>
+<p><code>uiautomator dump</code> + <code>input tap</code> works on the eSIM dialogs. The QR/code entry screen is
+<code>com.samsung.android.gearoplugin.esim.android.CaptureActivity</code> (not exported, but reached
+through "Use code"); manual entry is a fragment inside <code>HMSecondFragmentActivity</code>.</p>
+<h3>Watch shell (sdb over Wi-Fi)</h3>
+<p>Tizen sdb uses a packet protocol similar to adb. <code>watchsdb.py</code> / <code>wsh.py</code> in this repo are
+a minimal Python client (useful when Samsung's <code>sdb</code> binary is blocked by macOS Local
+Network permissions). Notes:</p>
+<ul>
+<li>The watch accepts one sdb host; the first connection shows an "allow" prompt.</li>
+<li>The daemon can wedge (TCP connects, no handshake). A full <strong>power cycle</strong> clears it.</li>
+<li><code>sdb root on</code> → <code>Permission denied</code> on retail firmware.</li>
+</ul>
+<h3>Files of interest on the watch</h3>
+<pre><code>/csa/csc/csc-active-customer.inf              -&gt; active CSC (XAR)
+/opt/system/csc-default/SW_Configuration.xml  -&gt; multi-CSC package R845UOYN
+                                                 customers: XAR ATT SPR TMB USC VZW
+/opt/data/esimmgr/eSIMManagerConfig.xml       -&gt; profileMaxNumber: 2
+/opt/data/esimmgr/local_certificate/          -&gt; carrier TLS certificates
+</code></pre>
+<p>The stock firmware is a multi-CSC package that already contains <code>/Customer/VZW/</code>, so the
+hardware and firmware are Verizon-capable. Only the server-side operator gate stood in
+the way.</p>
+<hr />
+<h1>Appendix B — quick reference</h1>
+<pre><code class="language-bash"># Pairing deadlock
+adb shell am broadcast -a OOBE_FLOW_CONTINUE_REQUEST
+
+# Confirm the phone SIM drives the eSIM gate
+adb shell getprop gsm.sim.operator.alpha      # Verizon
+adb shell getprop gsm.sim.operator.numeric    # 311480
+
+# Watch shell over Wi-Fi (after enabling Debugging)
+sdb connect &lt;watch-ip&gt;:26101
+</code></pre>
+<p>Activation code:</p>
+<pre><code>LPA:1$2.vzw.otgeuicc.com$&lt;matching-id&gt;
+</code></pre>
+<hr />
+<h2>Credits</h2>
+<p>Worked out by inspecting the Galaxy Wearable plugin (<code>com.samsung.android.gearnplugin</code>
+2.2.09.24012551) and the Watch3's own eSIM stack, with live logs from a retail SM-R845U
+paired to a Motorola phone.</p>
+<p>Licence: CC BY 4.0 — copy, adapt, repost.</p>
